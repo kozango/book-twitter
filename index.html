@@ -783,33 +783,43 @@ body {
       return [{ name: '', text: text }];
     },
 
+    _pickTargetSize() {
+      const r = Math.random();
+      if (r < 0.3) return 150 + Math.floor(Math.random() * 250);   // 150-400
+      if (r < 0.8) return 800 + Math.floor(Math.random() * 1200);  // 800-2000
+      return 2000 + Math.floor(Math.random() * 1000);               // 2000-3000
+    },
+
     _groupIntoChunks(paragraphs) {
       const chunks = [];
       let currentParagraphs = [];
       let currentLength = 0;
+      let target = this._pickTargetSize();
 
       for (const para of paragraphs) {
         const paraLength = para.length;
 
-        if (currentLength > 0 && currentLength + paraLength > this.MAX_SIZE) {
+        if (currentLength > 0 && currentLength + paraLength > target + 500) {
           chunks.push(currentParagraphs.join('\n\n'));
           currentParagraphs = [];
           currentLength = 0;
+          target = this._pickTargetSize();
         }
 
         currentParagraphs.push(para);
         currentLength += paraLength;
 
-        if (currentLength >= this.TARGET_SIZE) {
+        if (currentLength >= target) {
           chunks.push(currentParagraphs.join('\n\n'));
           currentParagraphs = [];
           currentLength = 0;
+          target = this._pickTargetSize();
         }
       }
 
       if (currentParagraphs.length > 0) {
         const remainingText = currentParagraphs.join('\n\n');
-        if (remainingText.length < this.MIN_SIZE && chunks.length > 0) {
+        if (remainingText.length < 100 && chunks.length > 0) {
           chunks[chunks.length - 1] += '\n\n' + remainingText;
         } else {
           chunks.push(remainingText);
