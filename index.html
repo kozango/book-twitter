@@ -143,6 +143,7 @@ body {
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
+  gap: var(--spacing-sm);
 }
 
 /* ===== Buttons ===== */
@@ -188,6 +189,27 @@ body {
 }
 .btn-read:hover {
   background: rgba(76, 175, 80, 0.15);
+}
+.btn-fav {
+  background: transparent;
+  border: 1px solid var(--text-muted);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 6px 16px;
+  border-radius: 20px;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+.btn-fav:hover {
+  border-color: #f5c518;
+  color: #f5c518;
+  background: rgba(245, 197, 24, 0.1);
+}
+.btn-fav.is-fav {
+  border-color: #f5c518;
+  color: #f5c518;
+}
+.btn-fav.is-fav:hover {
+  background: rgba(245, 197, 24, 0.15);
 }
 .btn-block {
   display: block;
@@ -447,6 +469,7 @@ body {
   <h1>BookFeed</h1>
   <nav id="app-nav">
     <button class="nav-tab active" data-route="feed">フィード</button>
+    <button class="nav-tab" data-route="favorites">ストック</button>
     <button class="nav-tab" data-route="bookshelf">本棚</button>
   </nav>
 </header>
@@ -467,6 +490,20 @@ body {
       <div class="empty-state-icon">&#x1F4DA;</div>
       <div class="empty-state-text">本がまだ登録されていません</div>
       <button class="btn btn-primary" onclick="location.hash='add'">本を追加する</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Favorites Screen ===== -->
+<section id="screen-favorites" class="screen">
+  <div class="screen-inner">
+    <div class="bookshelf-header">
+      <h2>ストック</h2>
+    </div>
+    <div id="favorites-list"></div>
+    <div id="favorites-empty" class="empty-state" style="display:none;">
+      <div class="empty-state-icon">&#x2606;</div>
+      <div class="empty-state-text">ストックしたチャンクはまだありません</div>
     </div>
   </div>
 </section>
@@ -621,6 +658,30 @@ body {
         book.chunks.forEach(c => c.isRead = false);
         this._save(books);
       }
+    },
+
+    toggleFavorite(bookId, chunkIndex) {
+      const books = this._load();
+      const book = books.find(b => b.id === bookId);
+      if (book && book.chunks[chunkIndex]) {
+        book.chunks[chunkIndex].isFav = !book.chunks[chunkIndex].isFav;
+        this._save(books);
+        return book.chunks[chunkIndex].isFav;
+      }
+      return false;
+    },
+
+    getFavorites() {
+      const books = this._load();
+      const favs = [];
+      for (const book of books) {
+        for (const chunk of book.chunks) {
+          if (chunk.isFav) {
+            favs.push({ bookId: book.id, bookTitle: book.title, totalChunks: book.chunks.length, chunk: chunk });
+          }
+        }
+      }
+      return favs;
     }
   };
 
@@ -824,7 +885,7 @@ body {
 
   // ===== Router =====
   App.Router = {
-    screens: ['feed', 'bookshelf', 'add'],
+    screens: ['feed', 'favorites', 'bookshelf', 'add'],
 
     init() {
       window.addEventListener('hashchange', () => this.route());
@@ -845,10 +906,12 @@ body {
       document.getElementById('screen-' + screen).classList.add('active');
 
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-      const activeTab = document.querySelector('[data-route="' + (screen === 'add' ? 'bookshelf' : screen) + '"]');
+      const navScreen = screen === 'add' ? 'bookshelf' : screen;
+      const activeTab = document.querySelector('[data-route="' + navScreen + '"]');
       if (activeTab) activeTab.classList.add('active');
 
       if (screen === 'feed') App.UI.Feed.render();
+      else if (screen === 'favorites') App.UI.Favorites.render();
       else if (screen === 'bookshelf') App.UI.Bookshelf.render();
       else if (screen === 'add') App.UI.AddBook.render();
     }
@@ -928,6 +991,7 @@ body {
       const chapterInfo = item.chunk.chapter ? ' \u2014 ' + escapeHtml(item.chunk.chapter) : '';
       const posInfo = (item.chunk.index + 1) + ' / ' + item.totalChunks;
 
+      const isFav = item.chunk.isFav;
       card.innerHTML =
         '<div class="feed-card-header">' +
           '<span class="feed-card-book-title">' + escapeHtml(item.bookTitle) + '</span>' +
@@ -935,6 +999,9 @@ body {
         '</div>' +
         '<div class="feed-card-body">' + renderContent(item.chunk.content) + '</div>' +
         '<div class="feed-card-footer">' +
+          '<button class="btn-fav' + (isFav ? ' is-fav' : '') + '" data-action="toggle-fav" data-book-id="' + item.bookId + '" data-chunk-index="' + item.chunk.index + '">' +
+            (isFav ? '\u2605 \u30b9\u30c8\u30c3\u30af\u6e08' : '\u2606 \u30b9\u30c8\u30c3\u30af') +
+          '</button>' +
           '<button class="btn-read" data-action="mark-read" data-book-id="' + item.bookId + '" data-chunk-index="' + item.chunk.index + '">' +
             '\u2713 \u8aad\u3093\u3060' +
           '</button>' +
@@ -965,6 +1032,47 @@ body {
       this._rendered = false;
       App.FeedEngine.reset();
       this.render();
+    }
+  };
+
+  // ===== UI: Favorites =====
+  App.UI.Favorites = {
+    render() {
+      const favs = App.Storage.getFavorites();
+      const list = document.getElementById('favorites-list');
+      const emptyEl = document.getElementById('favorites-empty');
+
+      if (favs.length === 0) {
+        list.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+      list.innerHTML = '';
+      for (const item of favs) {
+        const card = document.createElement('div');
+        card.className = 'feed-card';
+        card.dataset.bookId = item.bookId;
+        card.dataset.chunkIndex = item.chunk.index;
+
+        const chapterInfo = item.chunk.chapter ? ' \u2014 ' + escapeHtml(item.chunk.chapter) : '';
+        const posInfo = (item.chunk.index + 1) + ' / ' + item.totalChunks;
+
+        card.innerHTML =
+          '<div class="feed-card-header">' +
+            '<span class="feed-card-book-title">' + escapeHtml(item.bookTitle) + '</span>' +
+            '<span class="feed-card-meta">' + escapeHtml(chapterInfo) + ' &middot; ' + posInfo + '</span>' +
+          '</div>' +
+          '<div class="feed-card-body">' + renderContent(item.chunk.content) + '</div>' +
+          '<div class="feed-card-footer">' +
+            '<button class="btn-fav is-fav" data-action="toggle-fav" data-book-id="' + item.bookId + '" data-chunk-index="' + item.chunk.index + '">' +
+              '\u2605 \u30b9\u30c8\u30c3\u30af\u6e08' +
+            '</button>' +
+          '</div>';
+
+        list.appendChild(card);
+      }
     }
   };
 
@@ -1116,8 +1224,15 @@ body {
 
   // ===== Event Bindings =====
   function initEvents() {
-    // Feed: mark read
+    // Feed: mark read & toggle fav
     document.getElementById('screen-feed').addEventListener('click', (e) => {
+      const favBtn = e.target.closest('[data-action="toggle-fav"]');
+      if (favBtn) {
+        const isFav = App.Storage.toggleFavorite(favBtn.dataset.bookId, parseInt(favBtn.dataset.chunkIndex, 10));
+        favBtn.classList.toggle('is-fav', isFav);
+        favBtn.textContent = isFav ? '\u2605 \u30b9\u30c8\u30c3\u30af\u6e08' : '\u2606 \u30b9\u30c8\u30c3\u30af';
+        return;
+      }
       const btn = e.target.closest('[data-action="mark-read"]');
       if (btn) {
         App.UI.Feed.handleMarkRead(btn.dataset.bookId, btn.dataset.chunkIndex, btn.closest('.feed-card'));
@@ -1127,6 +1242,22 @@ body {
     // Feed: load more
     document.getElementById('btn-load-more').addEventListener('click', () => {
       App.UI.Feed._loadPage(document.getElementById('feed-container'));
+    });
+
+    // Favorites: toggle fav
+    document.getElementById('screen-favorites').addEventListener('click', (e) => {
+      const favBtn = e.target.closest('[data-action="toggle-fav"]');
+      if (favBtn) {
+        App.Storage.toggleFavorite(favBtn.dataset.bookId, parseInt(favBtn.dataset.chunkIndex, 10));
+        const card = favBtn.closest('.feed-card');
+        card.classList.add('read-exit');
+        card.addEventListener('transitionend', () => {
+          card.remove();
+          if (document.getElementById('favorites-list').children.length === 0) {
+            document.getElementById('favorites-empty').style.display = 'block';
+          }
+        }, { once: true });
+      }
     });
 
     // Bookshelf: actions
