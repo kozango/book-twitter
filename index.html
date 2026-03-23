@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BookFeed</title>
+<style>
+/* ===== Design Tokens ===== */
+:root {
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #1a1a1a;
+  --bg-card: #1e1e1e;
+  --bg-card-hover: #252525;
+  --border-color: #2a2a2a;
+  --text-primary: #e8e6e3;
+  --text-secondary: #a0a0a0;
+  --text-muted: #6b6b6b;
+  --accent: #4a9eff;
+  --accent-hover: #3a8eef;
+  --success: #4caf50;
+  --danger: #ef5350;
+  --font-body: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+  --font-size-body: 16px;
+  --line-height-body: 1.9;
+  --card-max-width: 640px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --border-radius: 8px;
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms ease;
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: var(--font-size-body); }
+body {
+  font-family: var(--font-ui);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== App Shell ===== */
+#app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+#app-header h1 {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: var(--spacing-sm) 0 0;
+  color: var(--text-primary);
+  letter-spacing: 0.05em;
+}
+#app-nav {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+}
+.nav-tab {
+  flex: 1;
+  max-width: 200px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  padding: var(--spacing-md) var(--spacing-lg);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.nav-tab:hover { color: var(--text-primary); }
+.nav-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ===== Screens ===== */
+.screen { display: none; padding: var(--spacing-lg) var(--spacing-md); padding-bottom: 80px; }
+.screen.active { display: block; }
+.screen-inner { max-width: var(--card-max-width); margin: 0 auto; }
+
+/* ===== Feed Cards ===== */
+.feed-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-md);
+  overflow: hidden;
+  transition: opacity var(--transition-normal), transform var(--transition-normal), max-height 400ms ease, margin 400ms ease, padding 400ms ease;
+}
+.feed-card.read-exit {
+  opacity: 0;
+  transform: translateY(-20px);
+  max-height: 0 !important;
+  margin-bottom: 0;
+  padding: 0;
+  border-width: 0;
+  overflow: hidden;
+}
+.feed-card-header {
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+.feed-card-book-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+.feed-card-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.feed-card-body {
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-lg);
+  font-family: var(--font-body);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--text-primary);
+}
+.feed-card-body p {
+  margin-bottom: 1em;
+}
+.feed-card-body p:last-child {
+  margin-bottom: 0;
+}
+.feed-card-footer {
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ===== Buttons ===== */
+.btn {
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--text-muted);
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.btn-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: transparent;
+}
+.btn-danger:hover {
+  background: rgba(239, 83, 80, 0.1);
+}
+.btn-read {
+  background: transparent;
+  border: 1px solid var(--success);
+  color: var(--success);
+  font-size: 0.85rem;
+  padding: 6px 16px;
+  border-radius: 20px;
+}
+.btn-read:hover {
+  background: rgba(76, 175, 80, 0.15);
+}
+.btn-block {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: var(--spacing-md);
+  font-size: 0.95rem;
+}
+
+/* ===== Bookshelf ===== */
+.bookshelf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+.bookshelf-header h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.book-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+.book-item-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+.book-item-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width var(--transition-normal);
+}
+.book-item-stats {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.book-item-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+.book-complete-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--success);
+  color: #fff;
+  margin-left: var(--spacing-sm);
+}
+
+/* ===== Add Book ===== */
+.add-book-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+.add-book-header h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.drop-zone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  text-align: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  margin-bottom: var(--spacing-lg);
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(74, 158, 255, 0.05);
+  color: var(--text-secondary);
+}
+.drop-zone-icon {
+  font-size: 2rem;
+  margin-bottom: var(--spacing-sm);
+}
+.drop-zone input[type="file"] {
+  display: none;
+}
+.form-group {
+  margin-bottom: var(--spacing-lg);
+}
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+.form-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.form-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: var(--spacing-xs);
+}
+.form-row {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.radio-group {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.radio-label input[type="radio"] {
+  accent-color: var(--accent);
+}
+
+/* ===== Preview ===== */
+.preview-section {
+  display: none;
+  margin-top: var(--spacing-lg);
+}
+.preview-section.visible {
+  display: block;
+}
+.preview-summary {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+.preview-summary-title {
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+.preview-summary p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+.preview-chunk {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-sm);
+}
+.preview-chunk-header {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-sm);
+}
+.preview-chunk-body {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  max-height: 100px;
+  overflow: hidden;
+  position: relative;
+}
+.preview-chunk-body::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, var(--bg-card));
+}
+.preview-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+/* ===== Empty State ===== */
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  color: var(--text-muted);
+}
+.empty-state-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+}
+.empty-state-text {
+  font-size: 1rem;
+  margin-bottom: var(--spacing-lg);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 767px) {
+  #app-header {
+    position: fixed;
+    bottom: 0;
+    top: auto;
+    left: 0;
+    right: 0;
+    border-bottom: none;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column-reverse;
+  }
+  #app-header h1 { display: none; }
+  .screen { padding-top: var(--spacing-md); padding-bottom: 80px; }
+  body { padding-top: 0; }
+}
+@media (min-width: 768px) {
+  .screen { padding: var(--spacing-xl) var(--spacing-lg); }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Header & Nav ===== -->
+<header id="app-header">
+  <h1>BookFeed</h1>
+  <nav id="app-nav">
+    <button class="nav-tab active" data-route="feed">フィード</button>
+    <button class="nav-tab" data-route="bookshelf">本棚</button>
+  </nav>
+</header>
+
+<!-- ===== Feed Screen ===== -->
+<section id="screen-feed" class="screen active">
+  <div class="screen-inner">
+    <div id="feed-container"></div>
+    <div id="feed-load-more" style="display:none;">
+      <button class="btn btn-block" id="btn-load-more">もっと読む</button>
+    </div>
+    <div id="feed-empty" class="empty-state" style="display:none;">
+      <div class="empty-state-icon">&#x1F389;</div>
+      <div class="empty-state-text">全部読みました！</div>
+      <button class="btn btn-primary" onclick="location.hash='bookshelf'">本棚を見る</button>
+    </div>
+    <div id="feed-no-books" class="empty-state" style="display:none;">
+      <div class="empty-state-icon">&#x1F4DA;</div>
+      <div class="empty-state-text">本がまだ登録されていません</div>
+      <button class="btn btn-primary" onclick="location.hash='add'">本を追加する</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Bookshelf Screen ===== -->
+<section id="screen-bookshelf" class="screen">
+  <div class="screen-inner">
+    <div class="bookshelf-header">
+      <h2>本棚</h2>
+      <button class="btn btn-primary" onclick="location.hash='add'">+ 本を追加</button>
+    </div>
+    <div id="bookshelf-list"></div>
+    <div id="bookshelf-empty" class="empty-state" style="display:none;">
+      <div class="empty-state-icon">&#x1F4DA;</div>
+      <div class="empty-state-text">本がまだありません</div>
+      <button class="btn btn-primary" onclick="location.hash='add'">本を追加する</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Add Book Screen ===== -->
+<section id="screen-add" class="screen">
+  <div class="screen-inner">
+    <div class="add-book-header">
+      <h2>本を追加</h2>
+      <button class="btn" onclick="location.hash='bookshelf'">戻る</button>
+    </div>
+
+    <!-- Drop Zone -->
+    <div class="drop-zone" id="drop-zone">
+      <div class="drop-zone-icon">&#x1F4C4;</div>
+      <div>テキストファイルをドロップ、またはクリックして選択</div>
+      <div style="font-size:0.8rem; margin-top:8px; color:var(--text-muted);">.txt (UTF-8)</div>
+      <input type="file" id="file-input" accept=".txt,text/plain">
+    </div>
+
+    <!-- File loaded info -->
+    <div id="file-info" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">読み込んだファイル</label>
+        <div id="file-name" style="color:var(--accent);font-size:0.9rem;"></div>
+      </div>
+    </div>
+
+    <!-- Book Title -->
+    <div class="form-group">
+      <label class="form-label" for="book-title">書籍名 *</label>
+      <input type="text" id="book-title" class="form-input" placeholder="例：影響力の武器">
+    </div>
+
+    <!-- Chapter Delimiter -->
+    <div class="form-group">
+      <label class="form-label">章区切り（任意）</label>
+      <div class="radio-group">
+        <label class="radio-label">
+          <input type="radio" name="delimiter-type" value="none" checked> なし
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="delimiter-type" value="regex"> 正規表現
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="delimiter-type" value="blankLines"> 空行
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="delimiter-type" value="string"> 文字列
+        </label>
+      </div>
+    </div>
+    <div class="form-group" id="delimiter-input-group" style="display:none;">
+      <input type="text" id="delimiter-value" class="form-input" placeholder="">
+      <div class="form-hint" id="delimiter-hint"></div>
+    </div>
+
+    <!-- Preview Button -->
+    <button class="btn btn-primary btn-block" id="btn-preview" disabled>プレビュー</button>
+
+    <!-- Preview Section -->
+    <div class="preview-section" id="preview-section">
+      <div class="preview-summary" id="preview-summary"></div>
+      <div id="preview-chunks"></div>
+      <div class="preview-actions">
+        <button class="btn btn-primary" id="btn-save-book" style="flex:1;">この分割で保存</button>
+        <button class="btn" id="btn-cancel-preview" style="flex:1;">やり直す</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  'use strict';
+
+  const App = {};
+
+  // ===== Storage =====
+  App.Storage = {
+    STORAGE_KEY: 'bookfeed_books',
+    _cache: null,
+
+    _load() {
+      if (this._cache !== null) return this._cache;
+      try {
+        const raw = localStorage.getItem(this.STORAGE_KEY);
+        this._cache = raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        console.error('Failed to load books:', e);
+        this._cache = [];
+      }
+      return this._cache;
+    },
+
+    _save(books) {
+      this._cache = books;
+      try {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(books));
+      } catch (e) {
+        console.error('Failed to save books:', e);
+        alert('保存に失敗しました。ストレージの容量が不足している可能性があります。');
+      }
+    },
+
+    getBooks() { return this._load(); },
+
+    getBook(bookId) {
+      return this._load().find(b => b.id === bookId) || null;
+    },
+
+    addBook(book) {
+      const books = this._load();
+      books.push(book);
+      this._save(books);
+    },
+
+    deleteBook(bookId) {
+      const books = this._load().filter(b => b.id !== bookId);
+      this._save(books);
+    },
+
+    markChunkRead(bookId, chunkIndex) {
+      const books = this._load();
+      const book = books.find(b => b.id === bookId);
+      if (book && book.chunks[chunkIndex]) {
+        book.chunks[chunkIndex].isRead = true;
+        this._save(books);
+      }
+    },
+
+    resetBook(bookId) {
+      const books = this._load();
+      const book = books.find(b => b.id === bookId);
+      if (book) {
+        book.chunks.forEach(c => c.isRead = false);
+        this._save(books);
+      }
+    }
+  };
+
+  // ===== ChunkSplitter =====
+  App.ChunkSplitter = {
+    TARGET_SIZE: 2000,
+    MIN_SIZE: 800,
+    MAX_SIZE: 3500,
+
+    split(text, options) {
+      // Normalize line endings
+      text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+      // Split into chapters
+      const chapters = this._splitChapters(text, options.delimiter);
+
+      // Split each chapter into chunks
+      const allChunks = [];
+      let globalIndex = 0;
+      for (const chapter of chapters) {
+        const paragraphs = chapter.text.split(/\n{2,}/).map(p => p.trim()).filter(p => p.length > 0);
+        const chunkTexts = this._groupIntoChunks(paragraphs);
+        for (const ct of chunkTexts) {
+          allChunks.push({
+            index: globalIndex++,
+            chapter: chapter.name,
+            content: ct,
+            isRead: false
+          });
+        }
+      }
+      return allChunks;
+    },
+
+    _splitChapters(text, delimiter) {
+      if (!delimiter || delimiter.type === 'none') {
+        return [{ name: '', text: text }];
+      }
+
+      if (delimiter.type === 'regex') {
+        try {
+          const regex = new RegExp(delimiter.value, 'gm');
+          const matches = [];
+          let match;
+          while ((match = regex.exec(text)) !== null) {
+            matches.push({ index: match.index, name: match[0].trim() });
+          }
+          if (matches.length === 0) return [{ name: '', text: text }];
+
+          const chapters = [];
+          // Preamble
+          if (matches[0].index > 0) {
+            const preamble = text.slice(0, matches[0].index).trim();
+            if (preamble) chapters.push({ name: 'はじめに', text: preamble });
+          }
+          for (let i = 0; i < matches.length; i++) {
+            const start = matches[i].index;
+            const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
+            const chapterText = text.slice(start, end);
+            // Remove the chapter title line from the text content
+            const firstNewline = chapterText.indexOf('\n');
+            const bodyText = firstNewline >= 0 ? chapterText.slice(firstNewline).trim() : '';
+            chapters.push({ name: matches[i].name, text: bodyText || chapterText.trim() });
+          }
+          return chapters.filter(c => c.text.length > 0);
+        } catch (e) {
+          console.error('Invalid regex:', e);
+          return [{ name: '', text: text }];
+        }
+      }
+
+      if (delimiter.type === 'blankLines') {
+        const count = parseInt(delimiter.value, 10) || 3;
+        const pattern = new RegExp('\\n{' + (count + 1) + ',}', 'g');
+        const sections = text.split(pattern).map(s => s.trim()).filter(s => s.length > 0);
+        return sections.map((s, i) => ({ name: 'セクション ' + (i + 1), text: s }));
+      }
+
+      if (delimiter.type === 'string') {
+        const lines = text.split('\n');
+        const chapters = [];
+        let current = { name: '', lines: [] };
+        for (const line of lines) {
+          if (line.trim() === delimiter.value.trim()) {
+            if (current.lines.length > 0) {
+              chapters.push({ name: current.name || ('セクション ' + (chapters.length + 1)), text: current.lines.join('\n').trim() });
+            }
+            current = { name: line.trim(), lines: [] };
+          } else {
+            current.lines.push(line);
+          }
+        }
+        if (current.lines.length > 0) {
+          chapters.push({ name: current.name || ('セクション ' + (chapters.length + 1)), text: current.lines.join('\n').trim() });
+        }
+        return chapters.filter(c => c.text.length > 0);
+      }
+
+      return [{ name: '', text: text }];
+    },
+
+    _groupIntoChunks(paragraphs) {
+      const chunks = [];
+      let currentParagraphs = [];
+      let currentLength = 0;
+
+      for (const para of paragraphs) {
+        const paraLength = para.length;
+
+        if (currentLength > 0 && currentLength + paraLength > this.MAX_SIZE) {
+          chunks.push(currentParagraphs.join('\n\n'));
+          currentParagraphs = [];
+          currentLength = 0;
+        }
+
+        currentParagraphs.push(para);
+        currentLength += paraLength;
+
+        if (currentLength >= this.TARGET_SIZE) {
+          chunks.push(currentParagraphs.join('\n\n'));
+          currentParagraphs = [];
+          currentLength = 0;
+        }
+      }
+
+      if (currentParagraphs.length > 0) {
+        const remainingText = currentParagraphs.join('\n\n');
+        if (remainingText.length < this.MIN_SIZE && chunks.length > 0) {
+          chunks[chunks.length - 1] += '\n\n' + remainingText;
+        } else {
+          chunks.push(remainingText);
+        }
+      }
+
+      return chunks;
+    }
+  };
+
+  // ===== FeedEngine =====
+  App.FeedEngine = {
+    _state: null,
+
+    reset() {
+      this._state = null;
+    },
+
+    generateFeed(books, pageSize) {
+      pageSize = pageSize || 12;
+
+      if (!this._state) {
+        const bookQueues = books
+          .map(book => ({
+            bookId: book.id,
+            title: book.title,
+            totalChunks: book.chunks.length,
+            unread: book.chunks.filter(c => !c.isRead)
+          }))
+          .filter(bq => bq.unread.length > 0);
+
+        // Shuffle book order (Fisher-Yates)
+        for (let i = bookQueues.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [bookQueues[i], bookQueues[j]] = [bookQueues[j], bookQueues[i]];
+        }
+
+        this._state = {
+          bookQueues: bookQueues,
+          pointers: bookQueues.map(() => 0)
+        };
+      }
+
+      const { bookQueues, pointers } = this._state;
+      const feedItems = [];
+
+      let exhausted = false;
+      while (feedItems.length < pageSize && !exhausted) {
+        let added = false;
+        for (let i = 0; i < bookQueues.length; i++) {
+          if (pointers[i] < bookQueues[i].unread.length) {
+            const chunk = bookQueues[i].unread[pointers[i]];
+            feedItems.push({
+              bookId: bookQueues[i].bookId,
+              bookTitle: bookQueues[i].title,
+              totalChunks: bookQueues[i].totalChunks,
+              chunk: chunk
+            });
+            pointers[i]++;
+            added = true;
+            if (feedItems.length >= pageSize) break;
+          }
+        }
+        if (!added) exhausted = true;
+      }
+
+      // Check if there are more items
+      const hasMore = bookQueues.some((bq, i) => pointers[i] < bq.unread.length);
+
+      return { items: feedItems, hasMore: hasMore };
+    }
+  };
+
+  // ===== Router =====
+  App.Router = {
+    screens: ['feed', 'bookshelf', 'add'],
+
+    init() {
+      window.addEventListener('hashchange', () => this.route());
+      document.getElementById('app-nav').addEventListener('click', (e) => {
+        const tab = e.target.closest('[data-route]');
+        if (tab) {
+          location.hash = tab.dataset.route;
+        }
+      });
+      this.route();
+    },
+
+    route() {
+      const hash = location.hash.slice(1) || 'feed';
+      const screen = this.screens.includes(hash) ? hash : 'feed';
+
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-' + screen).classList.add('active');
+
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      const activeTab = document.querySelector('[data-route="' + (screen === 'add' ? 'bookshelf' : screen) + '"]');
+      if (activeTab) activeTab.classList.add('active');
+
+      if (screen === 'feed') App.UI.Feed.render();
+      else if (screen === 'bookshelf') App.UI.Bookshelf.render();
+      else if (screen === 'add') App.UI.AddBook.render();
+    }
+  };
+
+  // ===== Utility =====
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function renderContent(content) {
+    return content.split(/\n{2,}/)
+      .map(p => '<p>' + escapeHtml(p).replace(/\n/g, '<br>') + '</p>')
+      .join('');
+  }
+
+  // ===== UI: Feed =====
+  App.UI = {};
+  App.UI.Feed = {
+    _rendered: false,
+
+    render() {
+      const books = App.Storage.getBooks();
+      const container = document.getElementById('feed-container');
+      const loadMore = document.getElementById('feed-load-more');
+      const emptyEl = document.getElementById('feed-empty');
+      const noBooksEl = document.getElementById('feed-no-books');
+
+      if (books.length === 0) {
+        container.innerHTML = '';
+        loadMore.style.display = 'none';
+        emptyEl.style.display = 'none';
+        noBooksEl.style.display = 'block';
+        return;
+      }
+
+      const hasUnread = books.some(b => b.chunks.some(c => !c.isRead));
+      if (!hasUnread) {
+        container.innerHTML = '';
+        loadMore.style.display = 'none';
+        noBooksEl.style.display = 'none';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      noBooksEl.style.display = 'none';
+      emptyEl.style.display = 'none';
+
+      if (!this._rendered) {
+        App.FeedEngine.reset();
+        container.innerHTML = '';
+        this._loadPage(container);
+        this._rendered = true;
+      }
+    },
+
+    _loadPage(container) {
+      const books = App.Storage.getBooks();
+      const result = App.FeedEngine.generateFeed(books);
+
+      for (const item of result.items) {
+        container.appendChild(this._createCard(item));
+      }
+
+      const loadMore = document.getElementById('feed-load-more');
+      loadMore.style.display = result.hasMore ? 'block' : 'none';
+    },
+
+    _createCard(item) {
+      const card = document.createElement('div');
+      card.className = 'feed-card';
+      card.dataset.bookId = item.bookId;
+      card.dataset.chunkIndex = item.chunk.index;
+
+      const chapterInfo = item.chunk.chapter ? ' \u2014 ' + escapeHtml(item.chunk.chapter) : '';
+      const posInfo = (item.chunk.index + 1) + ' / ' + item.totalChunks;
+
+      card.innerHTML =
+        '<div class="feed-card-header">' +
+          '<span class="feed-card-book-title">' + escapeHtml(item.bookTitle) + '</span>' +
+          '<span class="feed-card-meta">' + escapeHtml(chapterInfo) + ' &middot; ' + posInfo + '</span>' +
+        '</div>' +
+        '<div class="feed-card-body">' + renderContent(item.chunk.content) + '</div>' +
+        '<div class="feed-card-footer">' +
+          '<button class="btn-read" data-action="mark-read" data-book-id="' + item.bookId + '" data-chunk-index="' + item.chunk.index + '">' +
+            '\u2713 \u8aad\u3093\u3060' +
+          '</button>' +
+        '</div>';
+
+      return card;
+    },
+
+    handleMarkRead(bookId, chunkIndex, cardEl) {
+      App.Storage.markChunkRead(bookId, parseInt(chunkIndex, 10));
+      cardEl.classList.add('read-exit');
+      cardEl.addEventListener('transitionend', () => {
+        cardEl.remove();
+        // Check if feed is now empty
+        const container = document.getElementById('feed-container');
+        if (container.children.length === 0) {
+          const books = App.Storage.getBooks();
+          const hasUnread = books.some(b => b.chunks.some(c => !c.isRead));
+          if (!hasUnread) {
+            document.getElementById('feed-load-more').style.display = 'none';
+            document.getElementById('feed-empty').style.display = 'block';
+          }
+        }
+      }, { once: true });
+    },
+
+    refresh() {
+      this._rendered = false;
+      App.FeedEngine.reset();
+      this.render();
+    }
+  };
+
+  // ===== UI: Bookshelf =====
+  App.UI.Bookshelf = {
+    render() {
+      const books = App.Storage.getBooks();
+      const list = document.getElementById('bookshelf-list');
+      const emptyEl = document.getElementById('bookshelf-empty');
+
+      if (books.length === 0) {
+        list.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+      list.innerHTML = books.map(book => {
+        const readCount = book.chunks.filter(c => c.isRead).length;
+        const total = book.chunks.length;
+        const pct = total > 0 ? Math.round((readCount / total) * 100) : 0;
+        const isComplete = readCount === total && total > 0;
+
+        return '<div class="book-item" data-book-id="' + book.id + '">' +
+          '<div class="book-item-title">' +
+            escapeHtml(book.title) +
+            (isComplete ? '<span class="book-complete-badge">\u8aad\u4e86</span>' : '') +
+          '</div>' +
+          '<div class="book-item-progress">' +
+            '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + pct + '%"></div></div>' +
+            '<span class="book-item-stats">' + readCount + ' / ' + total + ' (' + pct + '%)</span>' +
+          '</div>' +
+          '<div class="book-item-actions">' +
+            '<button class="btn" data-action="reset-book" data-book-id="' + book.id + '">\u672a\u8aad\u306b\u623b\u3059</button>' +
+            '<button class="btn btn-danger" data-action="delete-book" data-book-id="' + book.id + '">\u524a\u9664</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+  };
+
+  // ===== UI: AddBook =====
+  App.UI.AddBook = {
+    _fileText: null,
+    _fileName: null,
+    _previewChunks: null,
+
+    render() {
+      // Reset state on each render
+      this._fileText = null;
+      this._fileName = null;
+      this._previewChunks = null;
+      document.getElementById('book-title').value = '';
+      document.getElementById('file-info').style.display = 'none';
+      document.getElementById('file-name').textContent = '';
+      document.getElementById('preview-section').classList.remove('visible');
+      document.getElementById('btn-preview').disabled = true;
+      document.querySelector('input[name="delimiter-type"][value="none"]').checked = true;
+      document.getElementById('delimiter-input-group').style.display = 'none';
+      document.getElementById('delimiter-value').value = '';
+    },
+
+    handleFileLoad(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this._fileText = e.target.result;
+        this._fileName = file.name;
+        document.getElementById('file-info').style.display = 'block';
+        document.getElementById('file-name').textContent = file.name + ' (' + Math.round(this._fileText.length / 1000) + 'K\u6587\u5b57)';
+
+        // Auto-fill title from filename
+        const titleInput = document.getElementById('book-title');
+        if (!titleInput.value) {
+          titleInput.value = file.name.replace(/\.txt$/i, '');
+        }
+        this._updatePreviewBtn();
+      };
+      reader.readAsText(file, 'UTF-8');
+    },
+
+    _updatePreviewBtn() {
+      const title = document.getElementById('book-title').value.trim();
+      document.getElementById('btn-preview').disabled = !(this._fileText && title);
+    },
+
+    runPreview() {
+      const title = document.getElementById('book-title').value.trim();
+      if (!this._fileText || !title) return;
+
+      const delimiterType = document.querySelector('input[name="delimiter-type"]:checked').value;
+      let delimiter = { type: 'none' };
+      if (delimiterType !== 'none') {
+        delimiter = { type: delimiterType, value: document.getElementById('delimiter-value').value };
+      }
+
+      const chunks = App.ChunkSplitter.split(this._fileText, { delimiter: delimiter });
+      this._previewChunks = chunks;
+
+      // Show preview summary
+      const chapters = {};
+      chunks.forEach(c => {
+        const ch = c.chapter || '\u672c\u6587';
+        chapters[ch] = (chapters[ch] || 0) + 1;
+      });
+
+      const summaryHtml =
+        '<div class="preview-summary-title">\u300c' + escapeHtml(title) + '\u300d\u306e\u5206\u5272\u7d50\u679c</div>' +
+        '<p>\u7dcf\u30c1\u30e3\u30f3\u30af\u6570: ' + chunks.length + '</p>' +
+        Object.entries(chapters).map(([ch, count]) =>
+          '<p>' + escapeHtml(ch) + ': ' + count + ' \u30c1\u30e3\u30f3\u30af</p>'
+        ).join('');
+
+      document.getElementById('preview-summary').innerHTML = summaryHtml;
+
+      // Show chunk previews (first 5)
+      const previewCount = Math.min(chunks.length, 5);
+      let previewHtml = '';
+      for (let i = 0; i < previewCount; i++) {
+        const c = chunks[i];
+        const chLabel = c.chapter ? escapeHtml(c.chapter) + ' / ' : '';
+        previewHtml += '<div class="preview-chunk">' +
+          '<div class="preview-chunk-header">' + chLabel + 'Chunk ' + (c.index + 1) + ' (' + c.content.length + '\u6587\u5b57)</div>' +
+          '<div class="preview-chunk-body">' + renderContent(c.content) + '</div>' +
+        '</div>';
+      }
+      if (chunks.length > previewCount) {
+        previewHtml += '<div style="text-align:center;color:var(--text-muted);padding:8px;">...\u4ed6 ' + (chunks.length - previewCount) + ' \u30c1\u30e3\u30f3\u30af</div>';
+      }
+      document.getElementById('preview-chunks').innerHTML = previewHtml;
+      document.getElementById('preview-section').classList.add('visible');
+    },
+
+    saveBook() {
+      const title = document.getElementById('book-title').value.trim();
+      if (!title || !this._previewChunks) return;
+
+      const book = {
+        id: 'book_' + Date.now(),
+        title: title,
+        chunks: this._previewChunks,
+        createdAt: new Date().toISOString()
+      };
+
+      App.Storage.addBook(book);
+      App.UI.Feed.refresh();
+      location.hash = 'bookshelf';
+    }
+  };
+
+  // ===== Event Bindings =====
+  function initEvents() {
+    // Feed: mark read
+    document.getElementById('screen-feed').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="mark-read"]');
+      if (btn) {
+        App.UI.Feed.handleMarkRead(btn.dataset.bookId, btn.dataset.chunkIndex, btn.closest('.feed-card'));
+      }
+    });
+
+    // Feed: load more
+    document.getElementById('btn-load-more').addEventListener('click', () => {
+      App.UI.Feed._loadPage(document.getElementById('feed-container'));
+    });
+
+    // Bookshelf: actions
+    document.getElementById('screen-bookshelf').addEventListener('click', (e) => {
+      const resetBtn = e.target.closest('[data-action="reset-book"]');
+      if (resetBtn) {
+        App.Storage.resetBook(resetBtn.dataset.bookId);
+        App.UI.Feed.refresh();
+        App.UI.Bookshelf.render();
+        return;
+      }
+      const deleteBtn = e.target.closest('[data-action="delete-book"]');
+      if (deleteBtn) {
+        const book = App.Storage.getBook(deleteBtn.dataset.bookId);
+        if (book && confirm('\u300c' + book.title + '\u300d\u3092\u524a\u9664\u3057\u307e\u3059\u304b\uff1f')) {
+          App.Storage.deleteBook(deleteBtn.dataset.bookId);
+          App.UI.Feed.refresh();
+          App.UI.Bookshelf.render();
+        }
+      }
+    });
+
+    // Add Book: file drop zone
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      if (e.dataTransfer.files.length > 0) {
+        App.UI.AddBook.handleFileLoad(e.dataTransfer.files[0]);
+      }
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) {
+        App.UI.AddBook.handleFileLoad(fileInput.files[0]);
+      }
+    });
+
+    // Add Book: title input
+    document.getElementById('book-title').addEventListener('input', () => {
+      App.UI.AddBook._updatePreviewBtn();
+    });
+
+    // Add Book: delimiter type change
+    document.querySelectorAll('input[name="delimiter-type"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const val = radio.value;
+        const inputGroup = document.getElementById('delimiter-input-group');
+        const input = document.getElementById('delimiter-value');
+        const hint = document.getElementById('delimiter-hint');
+
+        if (val === 'none') {
+          inputGroup.style.display = 'none';
+        } else {
+          inputGroup.style.display = 'block';
+          if (val === 'regex') {
+            input.placeholder = '\u4f8b: ^(\\u7b2c.+\\u7ae0|Chapter \\d+)';
+            hint.textContent = '\u7ae0\u306e\u898b\u51fa\u3057\u306b\u30de\u30c3\u30c1\u3059\u308b\u6b63\u898f\u8868\u73fe\uff08\u5404\u884c\u306b\u5bfe\u3057\u3066\u30de\u30c3\u30c1\uff09';
+          } else if (val === 'blankLines') {
+            input.placeholder = '\u4f8b: 3';
+            hint.textContent = '\u9023\u7d9a\u3059\u308b\u7a7a\u884c\u306e\u6570\uff08\u3053\u306e\u6570\u4ee5\u4e0a\u306e\u7a7a\u884c\u3067\u5206\u5272\uff09';
+          } else if (val === 'string') {
+            input.placeholder = '\u4f8b: ---';
+            hint.textContent = '\u3053\u306e\u6587\u5b57\u5217\u3060\u3051\u306e\u884c\u3067\u5206\u5272';
+          }
+          input.value = '';
+        }
+      });
+    });
+
+    // Add Book: preview button
+    document.getElementById('btn-preview').addEventListener('click', () => {
+      App.UI.AddBook.runPreview();
+    });
+
+    // Add Book: save button
+    document.getElementById('btn-save-book').addEventListener('click', () => {
+      App.UI.AddBook.saveBook();
+    });
+
+    // Add Book: cancel preview
+    document.getElementById('btn-cancel-preview').addEventListener('click', () => {
+      document.getElementById('preview-section').classList.remove('visible');
+    });
+  }
+
+  // ===== Init =====
+  App.init = function() {
+    initEvents();
+    App.Router.init();
+  };
+
+  document.addEventListener('DOMContentLoaded', App.init);
+})();
+</script>
+</body>
+</html>
